@@ -110,3 +110,34 @@ fn pack_rejects_missing_assets_bad_manifests_and_non_mkv_outputs() {
     assert!(pack(&video, &bad, &[dsf], &dir.join("o.mkv")).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn open_audio_audio_only_package_round_trips_dsd_exactly() {
+    if !ffmpeg_ok() {
+        return;
+    }
+    let dir = tmpdir("open_audio");
+    let fallback = dir.join("fb.flac");
+    let out = Command::new("ffmpeg").args(["-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=2", "-c:a", "flac", fallback.to_str().unwrap()]).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let dsf_bytes = fake_dsf(32);
+    let dsf = dir.join("main.dsf");
+    std::fs::write(&dsf, &dsf_bytes).unwrap();
+    let mut m = manifest();
+    m.format = "open-audio".into();
+    let mka = dir.join("out.mka");
+    pack(&fallback, &m, &[dsf.clone()], &mka).expect("open-audio pack should succeed");
+    let info = inspect(&mka).unwrap();
+    assert_eq!((info.video_streams, info.audio_streams), (0, 1), "音声だけ(映像なし)");
+    assert!(info.attachments.iter().any(|a| a.filename == "open-audio.json"));
+    assert_eq!(info.manifest.as_ref().unwrap().format, "open-audio");
+    let outdir = dir.join("x");
+    extract(&mka, &outdir).unwrap();
+    assert_eq!(std::fs::read(outdir.join("main.dsf")).unwrap(), dsf_bytes, "DSDはビット単位で一致");
+    // 通常のプレーヤーは、互換のFLACとして普通に再生できる
+    let dec = Command::new("ffmpeg").args(["-v", "error", "-i", mka.to_str().unwrap(), "-f", "null", "-"]).output().unwrap();
+    assert!(dec.status.success());
+    // open-audioに.mp4は不可
+    assert!(pack(&fallback, &m, &[dsf], &dir.join("o.mp4")).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}

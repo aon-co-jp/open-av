@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use thiserror::Error;
 
+/// 映像ありパッケージのマニフェスト添付名(音声だけの`open-audio`は`open-audio.json`、`Manifest::attachment_name`)。
 pub const MANIFEST_NAME: &str = "open-av.json";
+pub const MANIFEST_NAME_AUDIO: &str = "open-audio.json";
 
 #[derive(Debug, Error)]
 pub enum PackError {
@@ -32,6 +34,13 @@ fn tool(name: &str, env: &str) -> Command {
     Command::new(std::env::var(env).unwrap_or_else(|_| name.to_string()))
 }
 
+/// プロセス内で一意な一時名(並列実行のテストや複数呼び出しで衝突しないように、通し番号を付ける)。
+fn unique(tag: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    format!("open_av_{tag}_{}_{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed))
+}
+
 fn mime_for(name: &str) -> &'static str {
     match Path::new(name).extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase().as_str() {
         "dsf" => "audio/x-dsf",
@@ -47,13 +56,17 @@ fn base_name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
 }
 
-/// 映像ファイルとアセット(DSD等)を、マニフェスト付きの1つのMKVにまとめる。
-/// マニフェストの`file`が指す各ファイルは、`assets`の中に同じ名前で存在しなければならない。
-pub fn pack(video: &Path, manifest: &Manifest, assets: &[PathBuf], output: &Path) -> Result<(), PackError> {
+/// 基になるファイル(open-avなら映像、open-audioなら互換用の音声)とアセット(DSD等)を、マニフェスト付きの1つのMatroskaにまとめる。
+/// open-av → `.mkv`、open-audio(音声だけ) → `.mka`(または`.mkv`)。マニフェストの`file`が指す各ファイルは、`assets`の中に同じ名前で存在しなければならない。
+pub fn pack(base: &Path, manifest: &Manifest, assets: &[PathBuf], output: &Path) -> Result<(), PackError> {
     manifest.validate()?;
-    if output.extension().and_then(|e| e.to_str()).map(|e| !e.eq_ignore_ascii_case("mkv")).unwrap_or(true) {
-        return Err(PackError::Invalid("出力は.mkvにしてください(添付ファイルを持てるコンテナ)".into()));
+    let ext = output.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    let ok_ext = if manifest.is_audio_only() { ext == "mka" || ext == "mkv" } else { ext == "mkv" };
+    if !ok_ext {
+        let want = if manifest.is_audio_only() { ".mka(または.mkv)" } else { ".mkv" };
+        return Err(PackError::Invalid(format!("出力は{want}にしてください(添付ファイルを持てるコンテナ)")));
     }
+    let video = base;
     for t in &manifest.audio_tracks {
         if let Some(f) = &t.file {
             if !assets.iter().any(|a| base_name(a) == *f) {
@@ -61,7 +74,7 @@ pub fn pack(video: &Path, manifest: &Manifest, assets: &[PathBuf], output: &Path
             }
         }
     }
-    let tmp = std::env::temp_dir().join(format!("open_av_{}_{}", std::process::id(), MANIFEST_NAME));
+    let tmp = std::env::temp_dir().join(unique("manifest")).with_extension("json");
     std::fs::write(&tmp, manifest.to_json())?;
     let mut cmd = tool("ffmpeg", "OPEN_AV_FFMPEG");
     cmd.args(["-y", "-v", "error", "-i"]).arg(video).args(["-map", "0", "-c", "copy"]);
@@ -81,7 +94,7 @@ pub fn pack(video: &Path, manifest: &Manifest, assets: &[PathBuf], output: &Path
         cmd.arg("-attach").arg(a).arg(format!("-metadata:s:t:{i}")).arg(format!("mimetype={}", mime_for(&name))).arg(format!("-metadata:s:t:{i}")).arg(format!("filename={name}"));
     }
     let mi = used.len();
-    cmd.arg("-attach").arg(&tmp).arg(format!("-metadata:s:t:{mi}")).arg("mimetype=application/json").arg(format!("-metadata:s:t:{mi}")).arg(format!("filename={MANIFEST_NAME}"));
+    cmd.arg("-attach").arg(&tmp).arg(format!("-metadata:s:t:{mi}")).arg("mimetype=application/json").arg(format!("-metadata:s:t:{mi}")).arg(format!("filename={}", manifest.attachment_name()));
     cmd.arg(output);
     let out = cmd.output().map_err(|e| PackError::Spawn(e.to_string()))?;
     let _ = std::fs::remove_file(&tmp);
@@ -142,11 +155,11 @@ pub fn inspect(path: &Path) -> Result<PackageInfo, PackError> {
             _ => {}
         }
     }
-    let manifest = match attachments.iter().find(|a| a.filename == MANIFEST_NAME) {
+    let manifest = match attachments.iter().find(|a| a.filename == MANIFEST_NAME || a.filename == MANIFEST_NAME_AUDIO) {
         Some(a) => {
-            let dir = std::env::temp_dir().join(format!("open_av_inspect_{}", std::process::id()));
+            let dir = std::env::temp_dir().join(unique("inspect"));
             std::fs::create_dir_all(&dir)?;
-            let target = dir.join(MANIFEST_NAME);
+            let target = dir.join(&a.filename);
             dump(path, a.index, &target)?;
             let text = std::fs::read_to_string(&target)?;
             let _ = std::fs::remove_dir_all(&dir);

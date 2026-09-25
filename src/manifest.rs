@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use thiserror::Error;
 
+/// 映像を含むパッケージ(MKV)の形式名。
 pub const FORMAT_NAME: &str = "open-av";
+/// 音声だけのパッケージ(MKA)の形式名(open-avの音声部分をそのまま単独で使える形式)。
+pub const FORMAT_AUDIO: &str = "open-audio";
 pub const VERSION: &str = "0.1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,12 +137,14 @@ pub struct Manifest {
 
 #[derive(Debug, Error, PartialEq)]
 pub enum ManifestError {
-    #[error("formatは\"open-av\"である必要があります(実際: {0})")]
+    #[error("formatは\"open-av\"または\"open-audio\"である必要があります(実際: {0})")]
     WrongFormat(String),
     #[error("未対応のバージョンです: {0}(対応: {VERSION})")]
     UnsupportedVersion(String),
     #[error("音声トラックがありません")]
     NoAudio,
+    #[error("音声だけの形式(open-audio)に映像(video)は指定できません")]
+    VideoInAudioFormat,
     #[error("トラックIDが重複しています: {0}")]
     DuplicateId(String),
     #[error("主音声(role=main)は1本だけにしてください(実際: {0}本)")]
@@ -153,14 +158,31 @@ impl Manifest {
         serde_json::from_str(s)
     }
 
+    /// 音声だけのopen-audioか。
+    pub fn is_audio_only(&self) -> bool {
+        self.format == FORMAT_AUDIO
+    }
+
+    /// パッケージに同梱するマニフェストの添付ファイル名(`open-av.json` / `open-audio.json`)。
+    pub fn attachment_name(&self) -> &'static str {
+        if self.is_audio_only() {
+            "open-audio.json"
+        } else {
+            "open-av.json"
+        }
+    }
+
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("Manifest is serializable")
     }
 
     /// 仕様どおりか検証する。
     pub fn validate(&self) -> Result<(), ManifestError> {
-        if self.format != FORMAT_NAME {
+        if self.format != FORMAT_NAME && self.format != FORMAT_AUDIO {
             return Err(ManifestError::WrongFormat(self.format.clone()));
+        }
+        if self.format == FORMAT_AUDIO && self.video.is_some() {
+            return Err(ManifestError::VideoInAudioFormat);
         }
         if self.version.split('.').next() != VERSION.split('.').next() {
             return Err(ManifestError::UnsupportedVersion(self.version.clone()));
@@ -289,6 +311,27 @@ mod tests {
         let mut t = dsd("a");
         t.rate_hz = Some(44_100);
         assert!(matches!(manifest(vec![t]).validate(), Err(ManifestError::Track { .. })), "PCMのレートはDSDとして不正");
+    }
+
+    #[test]
+    fn open_audio_is_the_audio_only_profile_and_rejects_video() {
+        let mut m = manifest(vec![dsd("d"), fallback()]);
+        m.format = "open-audio".into();
+        assert_eq!(m.validate(), Ok(()));
+        assert!(m.is_audio_only());
+        assert_eq!(m.attachment_name(), "open-audio.json");
+        m.video = Some(Video { file: Some("v.mp4".into()), stream_index: None });
+        assert_eq!(m.validate(), Err(ManifestError::VideoInAudioFormat));
+        m.format = "open-av".into();
+        assert_eq!(m.validate(), Ok(()), "open-avは映像を持てる");
+        assert_eq!(m.attachment_name(), "open-av.json");
+    }
+
+    #[test]
+    fn the_shipped_open_audio_example_validates() {
+        let m = Manifest::from_json(include_str!("../examples/example.open-audio.json")).unwrap();
+        assert_eq!(m.validate(), Ok(()));
+        assert!(m.is_audio_only());
     }
 
     #[test]

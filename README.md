@@ -23,6 +23,15 @@
 - MP4/MKVにはDSDの入れ場所(標準のコーデック)が無いため、Matroskaの**添付ファイル**(任意のMIMEタイプ)を使う。DSDファイルは**ビット単位で一致して**取り出せる(テスト済み)。
 - **イマーシブ配置**: チャンネル配置をスピーカー位置名(FL/FR/FC/LFE/SL/SR/TFL/TFR/TSL/TSR/TC…)で表す。`9.1-height`(5.1+高さ4本)、`11.1-height`などのプリセットあり。特定社の商標名や独自符号化には依存しない。
 
+## 音声フォーマット: open-audio
+
+**open-audio** は、open-avの**音声部分を単独で使える音声フォーマット**です(映像なし)。拡張子は`.mka`(Matroska音声)。
+
+- 構成はopen-avと同じ: 互換用の通常音声(FLAC等)+ **DSD(DSF)を添付ファイルとして同梱** + マニフェスト`open-audio.json`(`"format": "open-audio"`)。映像(`video`)は持てない。
+- open-audio非対応のプレーヤーは、互換のFLAC等として**普通に再生**できる。対応プレーヤー(`open-bar`を予定)は、DSDを主音声として鳴らす。
+- 位置づけ: **open-av = 映像 + open-audio**。トラック(`dsd`/`pcm`/`opaque`)・チャンネル配置(`stereo`〜`9.1-height`/`11.1-height`)・MQA/Auro-CXの素通し規則は共通。
+- 例: [examples/example.open-audio.json](examples/example.open-audio.json)。`open-av pack fallback.flac manifest.json out.mka track.dsf`で作れる(実ffmpegで往復・DSDのビット一致を確認済み)。
+
 ## MQAとAuro-CXについて(正直な開示)
 
 **MQAもAuro-CXも、特許・営業秘密で保護された非公開技術で、オープンソース版は存在せず、open-avも復号・再実装しません。** 「MQAとAuro-CXのオープンソースを融合」という構想は、次のように解釈して実現しています。
@@ -38,6 +47,7 @@
 | 映像+DSD+マニフェストを1つのMKVへ(`open-av pack`) | ✅ 実ffmpegで確認 |
 | 構成の確認・添付の取り出し(`inspect` / `extract`) | ✅ DSDがビット一致で往復 |
 | 非対応プレーヤーでの通常再生 | ✅ ffmpegで映像+音声をデコードできることを確認 |
+| 音声だけの形式 **open-audio**(`.mka`)のpack/inspect/extract | ✅ 実ffmpegで確認(DSDビット一致) |
 | 対応プレーヤー(open-barでDSD主音声を鳴らす) | ❌ 未実装(次) |
 | make-diskからの書き出し | ❌ 未実装(次) |
 | イマーシブDSDの実データでの再生確認 | ❌ 未確認(配置メタデータの定義のみ) |
@@ -61,6 +71,8 @@ ffmpeg/ffprobeが必要です(環境変数`OPEN_AV_FFMPEG`/`OPEN_AV_FFPROBE`で�
 **Links:** [make-disk latest installers](https://github.com/aon-co-jp/make-disk/releases/latest) (all platforms; always the newest version) · [Windows installer v0.1.29](https://github.com/aon-co-jp/make-disk/releases/download/v0.1.29/make-disk_0.1.29_x64-setup.exe) · [make-disk latest README](https://github.com/aon-co-jp/make-disk#readme) · [open-bar player](https://github.com/aon-co-jp/open-bar) · [open-mqa](https://github.com/aon-co-jp/open-mqa) / [open-mqa-dsd](https://github.com/aon-co-jp/open-mqa-dsd). The pinned Windows link goes stale when a new release ships; open `releases/latest` first.
 
 **How it works:** the MKV carries the untouched video stream, a normal fallback audio track, the DSD file(s) as **Matroska attachments** (MP4/MKV have no standard DSD codec), and a manifest `open-av.json` (tracks, channel layouts, sync). Players without open-av support ignore the attachments and play video + fallback audio (verified with ffmpeg); a capable player plays DSD as the main audio. DSD files extract **bit-exactly** (tested). Channel layouts are expressed as speaker positions (`9.1-height` = 5.1 + 4 height channels, `11.1-height`, …) without depending on any vendor trademark or codec.
+
+**Audio format name: open-audio.** `open-audio` is the **audio-only profile** of open-av (no video, extension `.mka`): a fallback audio stream + DSD files as Matroska attachments + a manifest `open-audio.json` (`"format": "open-audio"`). Players without support play the fallback normally. **open-av = video + open-audio**; tracks, channel layouts and the MQA/Auro-CX opaque-passthrough rules are shared. Verified with real ffmpeg (DSD round-trips bit-exactly).
 
 **MQA and Auro-CX (honest disclosure):** both are patented, proprietary technologies with no open-source implementation; open-av neither decodes nor reimplements them. MQA-encoded audio can be carried untouched as `kind: "opaque"`, `decode: "none"` (pass it bit-perfectly to an MQA-capable DAC); the open parts of the idea come from `open-mqa`/`open-mqa-dsd` (WAV/FLAC/DSD/DoP). Auro-CX streams can likewise be carried as opaque passthrough for a licensed decoder; **no Auro-3D/Auro-CX compatibility is claimed**.
 

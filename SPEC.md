@@ -50,3 +50,10 @@ FL/FR(前方左右)、FC(中央)、LFE、SL/SR(側方)、BL/BR(後方)、TFL/TFR
 ## 4. 非目標 / Non-goals
 
 MQA・Auro-CX・Auro-3D・Dolby Atmos等の**復号・再エンコード・互換性の主張**はしない。 / No decoding, re-encoding or compatibility claims for MQA, Auro-CX, Auro-3D, Dolby Atmos or similar proprietary formats.
+
+## 5. 音声フォーマット open-audio / The audio format "open-audio"
+
+- `format: "open-audio"`のマニフェストは、**音声だけ**のパッケージを表す(`video`は不可)。コンテナはMatroska音声(`.mka`、`.mkv`も可)。
+- 添付のマニフェスト名は`open-audio.json`(open-avは`open-av.json`)。それ以外の構造(`audio_tracks`・`layout`・`role: main`は1本・`opaque`は`decode: "none"`)は§2と同じ。
+- 互換音声(`role: "fallback"`)を必ず1本付けることを推奨する(非対応プレーヤーがそれを鳴らす)。
+- **open-av = 映像 + open-audio**。open-avのパッケージから映像を除いたものがopen-audioである。 / `open-audio` is the audio-only profile: an open-av package without video.
