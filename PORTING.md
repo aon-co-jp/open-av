@@ -1,0 +1,3 @@
+# PORTING
+
+- 2026-09-25: 初版。次はCLAUDE.mdのHANDOFFを参照。

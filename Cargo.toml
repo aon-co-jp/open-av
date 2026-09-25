@@ -1,0 +1,20 @@
+[package]
+name = "open-av"
+version = "0.1.0"
+edition = "2021"
+description = "open-av: open video container profile - MP4/MKV video + DSD audio + immersive layout metadata; MQA/Auro-CX streams are carried as opaque passthrough (never decoded)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/aon-co-jp/open-av"
+
+[lib]
+name = "open_av"
+path = "src/lib.rs"
+
+[[bin]]
+name = "open-av"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
