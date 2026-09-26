@@ -122,6 +122,36 @@ impl Default for Sync {
     }
 }
 
+/// ライセンス種別・購入導線のメタデータ(任意)。
+///
+/// **これは権利の付与そのものではない。** ここに書いた内容だけで市販音源を配信・販売してよく
+/// なるわけではなく、実際にJASRAC/NexTone・レコード会社等と契約したあとで「その契約内容を
+/// 機械可読に記録しておく欄」として使う想定(2026-09-26新設、ユーザー依頼)。
+/// パブリックドメイン音源(このリポジトリのopen-bar側テストフィクスチャ等)では
+/// `license_type = "public-domain"`・`purchase_url = None`でよい(そもそも許諾が不要なため)。
+///
+/// This is metadata, not a grant of rights. Filling this in does not by itself make it legal
+/// to distribute or sell commercial recordings — it's a machine-readable place to record the
+/// terms of an *actual* agreement (e.g. with a collecting society or label) once one exists.
+/// For public-domain sources, `license_type = "public-domain"` and no `purchase_url` is correct,
+/// since no permission is needed in the first place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Licensing {
+    /// 例: `"public-domain"`・`"cc0"`・`"cc-by"`・`"promotional-webcast"`・`"licensed-retail"`など。
+    /// 自由記述(このcrateは値を検証・強制しない、記録するだけ)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license_type: Option<String>,
+    /// 許諾の範囲の説明(自由記述)。例: "非インタラクティブ配信のみ、複製・保存不可"。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// 実際に購入できる先(Amazon等の外部ストアURL)。試聴・宣伝から誘導する用途。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purchase_url: Option<String>,
+    /// 権利者・許諾元(自由記述)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rights_holder: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Manifest {
     pub format: String,
@@ -133,6 +163,8 @@ pub struct Manifest {
     pub audio_tracks: Vec<AudioTrack>,
     #[serde(default)]
     pub sync: Sync,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub licensing: Option<Licensing>,
 }
 
 #[derive(Debug, Error, PartialEq)]
@@ -259,7 +291,7 @@ mod tests {
     }
 
     fn manifest(tracks: Vec<AudioTrack>) -> Manifest {
-        Manifest { format: "open-av".into(), version: "0.1".into(), title: Some("t".into()), video: None, audio_tracks: tracks, sync: Sync::default() }
+        Manifest { format: "open-av".into(), version: "0.1".into(), title: Some("t".into()), video: None, audio_tracks: tracks, sync: Sync::default(), licensing: None }
     }
 
     #[test]

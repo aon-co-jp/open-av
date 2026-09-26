@@ -57,6 +57,7 @@ fn manifest() -> Manifest {
             AudioTrack { id: "fb".into(), kind: TrackKind::Pcm, role: Role::Fallback, rate_hz: Some(48_000), channels: 2, layout: Layout::Preset("stereo".into()), language: None, title: None, file: None, stream_index: Some(0), codec: None, decode: None, note: None },
         ],
         sync: Sync::default(),
+        licensing: None,
     }
 }
 
