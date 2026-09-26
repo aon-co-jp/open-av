@@ -18,6 +18,23 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 name = "open-av"
 version = "0.1.0"
 dependencies = [
+ "open-mqa-dsd",
+]
+
+[[package]]
+name = "open-mqa"
+version = "0.1.0"
+source = "git+https://github.com/aon-co-jp/open-mqa?rev=2d94ada#2d94adae49bf67db52f58f413537d515670f2ac8"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "open-mqa-dsd"
+version = "0.1.0"
+source = "git+https://github.com/aon-co-jp/open-mqa-dsd?rev=572dd0d#572dd0d95a9cf7bfbe961328aac05798beeff9a6"
+dependencies = [
+ "open-mqa",
  "serde",
  "serde_json",
  "thiserror",

@@ -23,14 +23,14 @@
 - MP4/MKVにはDSDの入れ場所(標準のコーデック)が無いため、Matroskaの**添付ファイル**(任意のMIMEタイプ)を使う。DSDファイルは**ビット単位で一致して**取り出せる(テスト済み)。
 - **イマーシブ配置**: チャンネル配置をスピーカー位置名(FL/FR/FC/LFE/SL/SR/TFL/TFR/TSL/TSR/TC…)で表す。`9.1-height`(5.1+高さ4本)、`11.1-height`などのプリセットあり。特定社の商標名や独自符号化には依存しない。
 
-## 音声フォーマット: open-audio
+## 音声フォーマット(open-mqa-dsdへ移設)
 
-**open-audio** は、open-avの**音声部分を単独で使える音声フォーマット**です(映像なし)。拡張子は`.mka`(Matroska音声)。
+音声だけの単独フォーマット(旧称open-audio)は[`open-mqa-dsd`](https://github.com/aon-co-jp/open-mqa-dsd)の`container`モジュールへ2026-09-26に移設し、`"format": "open-mqa-dsd"`へ改称した。ここ(open-av)は映像プロファイル(`.mkv`)専用として残る。
 
-- 構成はopen-avと同じ: 互換用の通常音声(FLAC等)+ **DSD(DSF)を添付ファイルとして同梱** + マニフェスト`open-audio.json`(`"format": "open-audio"`)。映像(`video`)は持てない。
-- open-audio非対応のプレーヤーは、互換のFLAC等として**普通に再生**できる。対応プレーヤー(`open-bar`を予定)は、DSDを主音声として鳴らす。
-- 位置づけ: **open-av = 映像 + open-audio**。トラック(`dsd`/`pcm`/`opaque`)・チャンネル配置(`stereo`〜`9.1-height`/`11.1-height`)・MQA/Auro-CXの素通し規則は共通。
-- 例: [examples/example.open-audio.json](examples/example.open-audio.json)。`open-av pack fallback.flac manifest.json out.mka track.dsf`で作れる(実ffmpegで往復・DSDのビット一致を確認済み)。
+- 構成はopen-avと同じ: 互換用の通常音声(FLAC等)+ **DSD(DSF)を添付ファイルとして同梱** + マニフェスト`open-mqa-dsd.json`(`"format": "open-mqa-dsd"`)。映像(`video`)は持てない。
+- 非対応のプレーヤーは、互換のFLAC等として**普通に再生**できる。対応プレーヤー(`open-bar`で実装済み)は、DSDを主音声として鳴らす。
+- 位置づけ: **open-av = 映像 + (open-mqa-dsdの音声専用プロファイル)**。トラック(`dsd`/`pcm`/`opaque`)・チャンネル配置(`stereo`〜`9.1-height`/`11.1-height`)・MQA/Auro-CXの素通し規則・`pack`/`inspect`/`extract`/`make_preview`の実装は共通(`open_mqa_dsd::container`)。
+- 例: [`open-mqa-dsd`の`examples/example.open-mqa-dsd.json`](https://github.com/aon-co-jp/open-mqa-dsd/blob/main/examples/example.open-mqa-dsd.json)。`open-av pack fallback.flac manifest.json out.mka track.dsf`で作れる(実ffmpegで往復・DSDのビット一致を確認済み)。
 
 ## MQAとAuro-CXについて(正直な開示)
 
@@ -47,7 +47,7 @@
 | 映像+DSD+マニフェストを1つのMKVへ(`open-av pack`) | ✅ 実ffmpegで確認 |
 | 構成の確認・添付の取り出し(`inspect` / `extract`) | ✅ DSDがビット一致で往復 |
 | 非対応プレーヤーでの通常再生 | ✅ ffmpegで映像+音声をデコードできることを確認 |
-| 音声だけの形式 **open-audio**(`.mka`)のpack/inspect/extract | ✅ 実ffmpegで確認(DSDビット一致) |
+| 音声だけの形式(open-mqa-dsdの`container`モジュール、`.mka`)のpack/inspect/extract | ✅ 実ffmpegで確認(DSDビット一致) |
 | 対応プレーヤー(open-barでDSD主音声を鳴らす) | ❌ 未実装(次) |
 | make-diskからの書き出し | ❌ 未実装(次) |
 | イマーシブDSDの実データでの再生確認 | ❌ 未確認(配置メタデータの定義のみ) |
@@ -72,7 +72,7 @@ ffmpeg/ffprobeが必要です(環境変数`OPEN_AV_FFMPEG`/`OPEN_AV_FFPROBE`で�
 
 **How it works:** the MKV carries the untouched video stream, a normal fallback audio track, the DSD file(s) as **Matroska attachments** (MP4/MKV have no standard DSD codec), and a manifest `open-av.json` (tracks, channel layouts, sync). Players without open-av support ignore the attachments and play video + fallback audio (verified with ffmpeg); a capable player plays DSD as the main audio. DSD files extract **bit-exactly** (tested). Channel layouts are expressed as speaker positions (`9.1-height` = 5.1 + 4 height channels, `11.1-height`, …) without depending on any vendor trademark or codec.
 
-**Audio format name: open-audio.** `open-audio` is the **audio-only profile** of open-av (no video, extension `.mka`): a fallback audio stream + DSD files as Matroska attachments + a manifest `open-audio.json` (`"format": "open-audio"`). Players without support play the fallback normally. **open-av = video + open-audio**; tracks, channel layouts and the MQA/Auro-CX opaque-passthrough rules are shared. Verified with real ffmpeg (DSD round-trips bit-exactly).
+**Audio-only format (moved to open-mqa-dsd).** The audio-only profile (formerly called "open-audio", no video, extension `.mka`) was moved into [`open-mqa-dsd`](https://github.com/aon-co-jp/open-mqa-dsd)'s `container` module on 2026-09-26 and renamed `"format": "open-mqa-dsd"`. This crate (open-av) now only covers the video profile, but shares the exact same pack/inspect/extract/preview implementation (`open_mqa_dsd::container`, re-exported here as `open_av::*` for source compatibility).
 
 **MQA and Auro-CX (honest disclosure):** both are patented, proprietary technologies with no open-source implementation; open-av neither decodes nor reimplements them. MQA-encoded audio can be carried untouched as `kind: "opaque"`, `decode: "none"` (pass it bit-perfectly to an MQA-capable DAC); the open parts of the idea come from `open-mqa`/`open-mqa-dsd` (WAV/FLAC/DSD/DoP). Auro-CX streams can likewise be carried as opaque passthrough for a licensed decoder; **no Auro-3D/Auro-CX compatibility is claimed**.
 

@@ -51,9 +51,12 @@ FL/FR(前方左右)、FC(中央)、LFE、SL/SR(側方)、BL/BR(後方)、TFL/TFR
 
 MQA・Auro-CX・Auro-3D・Dolby Atmos等の**復号・再エンコード・互換性の主張**はしない。 / No decoding, re-encoding or compatibility claims for MQA, Auro-CX, Auro-3D, Dolby Atmos or similar proprietary formats.
 
-## 5. 音声フォーマット open-audio / The audio format "open-audio"
+## 5. 音声専用プロファイル(open-mqa-dsdへ移設済み) / The audio-only profile (moved to open-mqa-dsd)
 
-- `format: "open-audio"`のマニフェストは、**音声だけ**のパッケージを表す(`video`は不可)。コンテナはMatroska音声(`.mka`、`.mkv`も可)。
-- 添付のマニフェスト名は`open-audio.json`(open-avは`open-av.json`)。それ以外の構造(`audio_tracks`・`layout`・`role: main`は1本・`opaque`は`decode: "none"`)は§2と同じ。
+- **2026-09-26、`format: "open-audio"`は`format: "open-mqa-dsd"`へ改称し、実装
+  (manifest/pack/inspect/extract/preview)ごと[`open-mqa-dsd`](https://github.com/aon-co-jp/open-mqa-dsd)の
+  `container`モジュールへ移設した。** ここ(open-av)は映像プロファイル(`.mkv`、本SPECの§1〜4)専用として残る。
+- `format: "open-mqa-dsd"`のマニフェストは、**音声だけ**のパッケージを表す(`video`は不可)。コンテナはMatroska音声(`.mka`、`.mkv`も可)。
+- 添付のマニフェスト名は`open-mqa-dsd.json`(open-avは`open-av.json`)。それ以外の構造(`audio_tracks`・`layout`・`role: main`は1本・`opaque`は`decode: "none"`)は§2と同じ。
 - 互換音声(`role: "fallback"`)を必ず1本付けることを推奨する(非対応プレーヤーがそれを鳴らす)。
-- **open-av = 映像 + open-audio**。open-avのパッケージから映像を除いたものがopen-audioである。 / `open-audio` is the audio-only profile: an open-av package without video.
+- **open-av(映像) と open-mqa-dsdの音声専用プロファイルは、同じ実装(`pack`/`inspect`/`extract`)を共有する。** open-avのパッケージから映像を除いたものが音声専用プロファイルである。 / Since 2026-09-26, the audio-only profile (formerly `"open-audio"`) lives in `open-mqa-dsd`'s `container` module as `"format": "open-mqa-dsd"`; this crate (open-av) now covers only the video profile (§1-4 above), sharing the same pack/inspect/extract implementation.

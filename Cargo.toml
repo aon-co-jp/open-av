@@ -2,7 +2,7 @@
 name = "open-av"
 version = "0.1.0"
 edition = "2021"
-description = "open-av: open video container profile - MP4/MKV video + DSD audio + immersive layout metadata; MQA/Auro-CX streams are carried as opaque passthrough (never decoded)"
+description = "open-av: open video container profile - MP4/MKV video + DSD audio + immersive layout metadata; MQA/Auro-CX streams are carried as opaque passthrough (never decoded). The manifest/pack/inspect/extract/preview implementation itself lives in open-mqa-dsd (open_mqa_dsd::container), shared with that crate's audio-only open-mqa-dsd container format."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/aon-co-jp/open-av"
 
@@ -15,6 +15,7 @@ name = "open-av"
 path = "src/main.rs"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "1"
+# manifest/pack/inspect/extract/preview(旧`open-audio`)は2026-09-26にここから移設し、
+# open-mqa-dsdの`container`モジュールに統一した。open-avは映像プロファイル専用の
+# ドキュメント・CLIとして、その実装にそのまま乗る(再エクスポート、lib.rs参照)。
+open-mqa-dsd = { git = "https://github.com/aon-co-jp/open-mqa-dsd", rev = "572dd0d" }
